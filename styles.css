@@ -1,171 +1,90 @@
-/* ====== Smart Phone Directory Styles ====== */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
-body {
-    background: linear-gradient(135deg, #74ebd5, #ACB6E5);
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    padding: 20px;
-    color: #333;
-}
+// Firebase Config
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
 
-.container {
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-    width: 100%;
-    max-width: 600px;
-    padding: 25px;
-}
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-header h1 {
-    font-size: 2rem;
-    margin-bottom: 5px;
-    text-align: center;
-}
+// DOM Elements
+const contactForm = document.getElementById('contactForm');
+const contactName = document.getElementById('contactName');
+const contactPhone = document.getElementById('contactPhone');
+const contactsList = document.getElementById('contactsList');
+const searchInput = document.getElementById('searchInput');
+const clearSearch = document.getElementById('clearSearch');
+const noContacts = document.getElementById('noContacts');
 
-header p {
-    font-size: 0.9rem;
-    text-align: center;
-    color: #555;
-    margin-bottom: 25px;
-}
+const EXPIRY_DAYS = 20;
+let contacts = [];
 
-h2 {
-    margin-bottom: 15px;
-    font-size: 1.2rem;
-    color: #333;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 500;
-}
-
-input[type="text"],
-input[type="tel"] {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    transition: border 0.3s;
-}
-
-input[type="text"]:focus,
-input[type="tel"]:focus,
-input:focus {
-    outline: none;
-    border-color: #74ebd5;
-}
-
-.btn {
-    cursor: pointer;
-    padding: 10px 18px;
-    border: none;
-    border-radius: 8px;
-    font-weight: 500;
-    font-size: 0.95rem;
-    transition: background 0.3s, color 0.3s;
-}
-
-.btn-primary {
-    background-color: #74ebd5;
-    color: #fff;
-}
-
-.btn-primary:hover {
-    background-color: #4bc3be;
-}
-
-.btn-secondary {
-    background-color: #e0e0e0;
-    color: #333;
-}
-
-.btn-secondary:hover {
-    background-color: #cacaca;
-}
-
-.contacts-list {
-    margin-top: 15px;
-}
-
-.contact-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #f9f9f9;
-    padding: 12px 15px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    transition: transform 0.2s;
-}
-
-.contact-item:hover {
-    transform: scale(1.02);
-    background: #e0f7fa;
-}
-
-.contact-item span {
-    flex: 1;
-    font-size: 0.95rem;
-}
-
-.delete-btn {
-    background: #ff6b6b;
-    color: #fff;
-    padding: 5px 10px;
-    border-radius: 6px;
-    font-size: 0.85rem;
-}
-
-.delete-btn:hover {
-    background: #ff3b3b;
-}
-
-.search-container {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-.no-contacts {
-    text-align: center;
-    color: #888;
-    font-size: 0.95rem;
-    margin-top: 10px;
-}
-
-/* Responsive */
-@media (max-width: 480px) {
-    .container {
-        padding: 15px;
+// Display Contacts
+function displayContacts(list) {
+    contactsList.innerHTML = '';
+    if (list.length === 0) {
+        noContacts.style.display = 'block';
+        return;
+    } else {
+        noContacts.style.display = 'none';
     }
 
-    header h1 {
-        font-size: 1.5rem;
-    }
+    list.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'contact-item';
+        div.innerHTML = `<span>${c.name}</span><span>${c.phone}</span><button class="delete-btn" data-key="${c.key}">Delete</button>`;
+        contactsList.appendChild(div);
+    });
 
-    input[type="text"],
-    input[type="tel"] {
-        padding: 8px 10px;
-    }
-
-    .btn {
-        padding: 8px 14px;
-        font-size: 0.9rem;
-    }
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', e => remove(ref(db, 'contacts/' + e.target.dataset.key)));
+    });
 }
+
+// Search Contacts
+function searchContacts() {
+    const query = searchInput.value.toLowerCase();
+    displayContacts(contacts.filter(c => c.name.toLowerCase().includes(query) || c.phone.includes(query)));
+}
+
+// Add Contact
+contactForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = contactName.value.trim();
+    const phone = contactPhone.value.trim();
+    if (!name || !phone) return;
+
+    const newContactRef = push(ref(db, 'contacts'));
+    set(newContactRef, { name, phone, added: new Date().toISOString() });
+    contactForm.reset();
+});
+
+// Firebase Listener
+onValue(ref(db, 'contacts'), snapshot => {
+    contacts = [];
+    snapshot.forEach(child => {
+        const data = child.val();
+        const key = child.key;
+        const added = new Date(data.added);
+        if ((new Date() - added) / (1000*60*60*24) <= EXPIRY_DAYS) contacts.push({ ...data, key });
+        else remove(ref(db, 'contacts/' + key));
+    });
+    searchContacts();
+});
+
+// Search & Clear Events
+searchInput.addEventListener('input', searchContacts);
+clearSearch.addEventListener('click', () => { searchInput.value = ''; displayContacts(contacts); });
+document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); searchInput.focus(); }
+    if (e.key === 'Escape') { searchInput.value = ''; displayContacts(contacts); }
+});
