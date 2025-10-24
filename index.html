@@ -1,120 +1,60 @@
-// ====== Smart Phone Directory JS (Firebase Version) ======
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Phone Directory</title>
+    <!-- Make sure styles.css is in the same folder -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📱 Smart Phone Directory</h1>
+            <p>Store contacts temporarily - auto-deleted after 20 days</p>
+        </header>
 
-// ===== Firebase Config =====
-const firebaseConfig = {
-    apiKey: "AIzaSyAJBIkiReoNsmyksaYoRNLgIMaT-9VBFaU",
-    authDomain: "smartphonedirectory-c7e53.firebaseapp.com",
-    databaseURL: "https://smartphonedirectory-c7e53-default-rtdb.firebaseio.com",
-    projectId: "smartphonedirectory-c7e53",
-    storageBucket: "smartphonedirectory-c7e53.appspot.com",
-    messagingSenderId: "1076796478965",
-    appId: "1:1076796478965:web:8bb6aa536c5e9a7fb13cbc"
-};
+        <main>
+            <!-- Add Contact Form -->
+            <section class="add-contact">
+                <h2>Add New Contact</h2>
+                <form id="contactForm">
+                    <div class="form-group">
+                        <label for="contactName">Name:</label>
+                        <input type="text" id="contactName" required placeholder="Enter contact name">
+                    </div>
+                    <div class="form-group">
+                        <label for="contactPhone">Phone Number:</label>
+                        <input type="tel" id="contactPhone" required placeholder="Enter phone number">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Contact</button>
+                </form>
+            </section>
 
-// ===== Initialize Firebase =====
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+            <!-- Search Section -->
+            <section class="search-section">
+                <h2>Search Contacts</h2>
+                <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="Search by name or phone number...">
+                    <button id="clearSearch" class="btn btn-secondary">Clear</button>
+                </div>
+                <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">
+                    💡 Tip: Use Ctrl+K to focus search, Escape to clear
+                </p>
+            </section>
 
-// ===== DOM Elements =====
-const contactForm = document.getElementById('contactForm');
-const contactName = document.getElementById('contactName');
-const contactPhone = document.getElementById('contactPhone');
-const contactsList = document.getElementById('contactsList');
-const searchInput = document.getElementById('searchInput');
-const clearSearch = document.getElementById('clearSearch');
-const noContacts = document.getElementById('noContacts');
+            <!-- Contacts List -->
+            <section class="contacts-section">
+                <h2>Your Contacts</h2>
+                <div id="contactsList" class="contacts-list"></div>
+                <div id="noContacts" class="no-contacts" style="display: none;">
+                    <p>No contacts found. Add your first contact above!</p>
+                </div>
+            </section>
+        </main>
+    </div>
 
-const EXPIRY_DAYS = 20;
-let contacts = [];
-
-// ===== Display Contacts =====
-function displayContacts(list) {
-    contactsList.innerHTML = '';
-    if (list.length === 0) {
-        noContacts.style.display = 'block';
-        return;
-    } else {
-        noContacts.style.display = 'none';
-    }
-
-    list.forEach(c => {
-        const div = document.createElement('div');
-        div.className = 'contact-item';
-        div.innerHTML = `
-            <span>${c.name}</span>
-            <span>${c.phone}</span>
-            <button class="delete-btn" data-key="${c.key}">Delete</button>
-        `;
-        contactsList.appendChild(div);
-    });
-
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', e => {
-            const key = e.target.getAttribute('data-key');
-            remove(ref(db, 'contacts/' + key));
-        });
-    });
-}
-
-// ===== Search Contacts =====
-function searchContacts() {
-    const query = searchInput.value.toLowerCase();
-    const filtered = contacts.filter(c => 
-        c.name.toLowerCase().includes(query) ||
-        c.phone.includes(query)
-    );
-    displayContacts(filtered);
-}
-
-// ===== Add Contact =====
-contactForm.addEventListener('submit', e => {
-    e.preventDefault();
-    const name = contactName.value.trim();
-    const phone = contactPhone.value.trim();
-    if (!name || !phone) return;
-
-    const newContactRef = push(ref(db, 'contacts'));
-    const addedDate = new Date().toISOString();
-    set(newContactRef, { name, phone, added: addedDate });
-
-    contactForm.reset();
-});
-
-// ===== Firebase Listener =====
-onValue(ref(db, 'contacts'), snapshot => {
-    contacts = [];
-    snapshot.forEach(child => {
-        const data = child.val();
-        const key = child.key;
-        const added = new Date(data.added);
-        const now = new Date();
-        const diff = (now - added) / (1000*60*60*24);
-
-        if (diff <= EXPIRY_DAYS) {
-            contacts.push({ ...data, key });
-        } else {
-            // auto-delete expired contacts
-            remove(ref(db, 'contacts/' + key));
-        }
-    });
-    searchContacts();
-});
-
-// ===== Search & Clear Events =====
-searchInput.addEventListener('input', searchContacts);
-clearSearch.addEventListener('click', () => {
-    searchInput.value = '';
-    displayContacts(contacts);
-});
-
-document.addEventListener('keydown', e => {
-    if (e.ctrlKey && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        searchInput.focus();
-    } else if (e.key === 'Escape') {
-        searchInput.value = '';
-        displayContacts(contacts);
-    }
-});
+    <!-- Make sure script.js is in the same folder -->
+    <script type="module" src="script.js"></script>
+</body>
+</html>
